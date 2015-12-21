@@ -86,7 +86,7 @@ Na imagem abaixo podemos ver um gráfico demonstrando a diferença entre o taman
 
 Assim podemos perceber que os bancos do tipo **chave-valor** conseguem aguentar mais dados, sendo que seus dados são mais simples, enquanto que os banco do tipo **grafo** aguentam menos dados porém seus dados são mais complexos.
 
-![](http://blog.3pillarglobal.com/sites/default/files/nosql-3a.png)
+![](http://img.genbetadev.com/2014/02/logo-mongodb-tagline-2.png)
 
 ##Introdução ao MongoDB
 
@@ -97,7 +97,9 @@ Ele é um banco de dados **orientado a documentos**, **escalável**, **livre de 
 Algumas funcionalidades interessantes do MongoDB são: 
 
 * orientação a documentos(JSON/BSON)
-* suporte a index, replicação e alta disponibilidade
+* suporte a index
+* replicação
+* alta disponibilidade
 * auto-sharding
 * map/reduce 
 * GridFS
@@ -113,9 +115,28 @@ E isso é bom? Dependendo do que você quer fazer sim, ele dá maior liberdade p
 
 ###JSON/BSON
 
-![](http://wp.clicrbs.com.br/infosfera/files/2014/04/jason-2.jpg)
+![](https://cldup.com/HZhJhq6zRZ.jpg)
 
 O MongoDb é um banco NoSQL orientado a documento [JSON](http://json.org/), ou seja, ele persiste os dados usando o formato JSON, criando assim um formato único de troca de dados em toda stack [MEAN](http://bemean.com.br/).
+
+O [BSON](http://bsonspec.org/) nada mais é que uma versão serializada e "binarizada", transformada em binário, do JSON. Ele possui diversos tipos caso queira conhecer mais sobre esses tipos [visite http://docs.mongodb.org/manual/reference/bson-types/](http://docs.mongodb.org/manual/reference/bson-types/).
+
+O [MongoDB](http://www.mongodb.com/json-and-bson) usa o [BSON](http://docs.mongodb.org/manual/reference/bson-types/) para estende o modelo de [JSON](http://json-schema.org/latest/json-schema-core.html#anchor8) para fornecer tipos de dados adicionais e para ser eficiente na codificação e decodificação em diferentes idiomas.db.teste.insert(json)
+
+
+###Sharding
+
+![Sharding chapter's image](https://cldup.com/CKCcVAXuE6.jpg)
+
+O [Sharding](http://docs.mongodb.org/manual/sharding/) é um mecanismo de distribuição de dados entre os servidores para persistir grandes volumes de dados. 
+
+Quando uma coleção começar a atingir o limite daquele servidor, você poderá adicionar outro servidor e colocar essa coleção como **sharding** para que ela distribua uma quantidade de seus dados para esse outro servidor ou servidores.
+
+Os `Config Server`s são servidores que armazenam os dados sobre o cluster e que são consultados pelo `mongos`, nosso router, para saber onde buscar a informação requisitada pelo `mongos` que será a porta de entrada de qualquer requisição no cluster.
+
+![Simple example with Sharding](http://docs.mongodb.org/manual/_images/sharded-cluster-test-architecture.png)
+
+Veremos um exemplo simples de implementação local mais para frente.
 
 ###Replica
 
@@ -125,17 +146,17 @@ Possuímos réplicas na maioria dos bancos de dados relacionais também, ela ape
 
 No MongoDb funciona da mesma forma, porém podemos replicar também os shardings.
 
-###Sharding
+A ideia por trás de replicar os shardings nos remete ao conceito largamente utilizado pelo MongoDb que é a alta disponibilidade.
 
-![Sharding chapter's image](http://www.codefutures.com/img/dbshards-shardit.gif)
+Vamos ver isso graficamente.
 
-O [Sharding](http://docs.mongodb.org/manual/sharding/) é um mecanismo de distribuição de dados entre os servidores para persistir grandes volumes de dados. 
+![Sharding with Replica cluster](https://cldup.com/_aT9Si2PTY.gif)
 
-Quando uma coleção começar a atingir o limite daquele servidor, você poderá adicionar outro servidor e colocar essa coleção como **sharding** para que ela distribua uma quantidade de seus dados para esse outro servidor ou servidores.
+Nesse caso um mesmo servidor físico pode estar rodando uma instância de `sharding` e uma de `replica`, porém a réplica é de um `sharding` externo àquele servidor, pois caso ele caia derrubará apenas um `sharding` que terá sua `replica` em outro servidor, podendo facilmente levantar um novo servidor com os dados do servidor que caiu, lindo não?
 
 ###GridFs
 
-![](http://www.kratedesign.com/wp-content/uploads/2012/11/less-files-more-miles.jpg)
+![](http://www.windream.com/uploads/media/windream_Filesystem-Archivierung_Header_01.jpg)
 
 É o sistema de armazenamento de aquivos binários do MongoDb, com ele você poderá distribuir seus arquivos binários pelos seus servidores, dando assim alta disponibilidade de acesso a eles.
 
@@ -215,7 +236,20 @@ db.teste.insert({a: true})
 // Inserindo via variável
 var json = {b: 'TESTE'}
 db.teste.insert(json)
+Inserted 1 record(s) in 250ms
+WriteResult({
+  "nInserted": 1
+})
 
+// Inserindo um segundo registro
+db.teste.insert(json)
+Inserted 1 record(s) in 2ms
+WriteResult({
+  "nInserted": 1
+})
+
+// perceba que a primeira vez que foi inserido ele demora mais
+// pois ele está criando a estrutura da colletion
 ```
 
 Quando usamos o comando `use`, ele muda nosso database e o aponta para a variável `db` usada no inicio dos comandos, então ela sempre apontará para e database atual, como podemos ver executando apenas seu nome:
@@ -226,7 +260,7 @@ be-mean
 
 ```
 
-**Dica**: instale o `mongo-hacker`, ver no github, manualmente
+**Dica**: instale o `mongo-hacker`, ver no github, manualmente. NÃO RODA EM WINDOWS.
 
 ```
 db.teste.find()
@@ -243,13 +277,22 @@ db.teste.find()
 
 ###ObjectId
 
-Você deve ter percebido esse campo após listarmos os objetos da nossa coleção
+Você deve ter percebido esse campo após listarmos os objetos da nossa coleção, ele é o ID único gerado pelo MongoDb, na verdade ele é um [UUID - Universally unique identifier](http://en.wikipedia.org/wiki/Universally_unique_identifier) gerado a partir de 4 dados:
 
-* [ObjectId](http://docs.mongodb.org/manual/reference/object-id/)
+- 4-byte é o timestamp,
+- 3-byte é o identificador da máquina,
+- 2-byte é o id do processo
+- 3-byte é o contador que começa com valor randômico
 
-Para apagarmos os dados dessa coleção de teste possuímos 2 comandos: `remove` e `drop`.
+*Documentação do [ObjectId](http://docs.mongodb.org/manual/reference/object-id/).*
 
-O `remove` apenas apaga os dados, porém a coleção continua existindo, já com o `drop` ele apaga a coleção inteira, como podemos ver abaixo:
+Para apagarmos os dados dessa coleção de teste possuímos 2 comandos:
+
+- `remove`
+- `drop`.
+- `dropDatabase`.
+
+O `remove` apenas apaga os dados, porém a coleção continua existindo, já com o `drop` ele apaga a coleção inteira e o `dropDatabase` como o próprio nome diz ele apaga o banco, como podemos ver abaixo:
 
 ```
 suissacorp(mongod-2.4.8) be-mean> db.teste.remove({})
@@ -267,6 +310,13 @@ true
 
 suissacorp(mongod-2.4.8) be-mean> show collections
 system.indexes
+
+suissacorp(mongod-2.4.8) be-mean> db.dropDatabase()
+{
+  "dropped": "be-mean",
+  "ok": 1
+}
+
 
 ```
 
@@ -344,8 +394,26 @@ suissacorp(mongod-2.4.8) be-mean> ps
   }
 ]
 
+suissacorp(mongod-2.4.8) be-mean> db.products.insert(ps)
+Inserted 1 record(s) in 1ms
 ```
 
+Na versão 2.6 para cima ainda recebemos o retorno de nossas ações, como nessa:
+
+```
+BulkWriteResult({
+  "writeErrors": [ ],
+  "writeConcernErrors": [ ],
+  "nInserted": 3,
+  "nUpserted": 0,
+  "nMatched": 0,
+  "nModified": 0,
+  "nRemoved": 0,
+  "upserted": [ ]
+})
+```
+
+Logo podemos ver que foram inseridos 3 registros, esse tipo de retorno só aconteceu após a versão 2.6, **em uma próxima atualização todos os códigos estarão na versão mais atual**.
 
 ```
 suissacorp(mongod-2.4.8) be-mean> db.products.find()
@@ -375,12 +443,52 @@ suissacorp(mongod-2.4.8) be-mean> db.products.find()
 }
 Fetched 4 record(s) in 1ms -- Index[none]
 
+// navegando de coleção em coleção
+suissacorp(mongod-2.4.8) be-mean> var produtos = db.products.find()
+suissacorp(mongod-2.4.8) be-mean> produtos.next()
+{
+  "_id": ObjectId("54614a0a5b9f2b586cb31d08"),
+  "name": "Cachaça",
+  "description": "Mé brasileiro",
+  "price": 12
+}
+suissacorp(mongod-2.4.8) be-mean> produtos.next()
+{
+  "_id": ObjectId("54614d5c5b9f2b586cb31d09"),
+  "name": "Pinga",
+  "description": "da braba po tubão",
+  "price": 4.5
+}
+suissacorp(mongod-2.4.8) be-mean> produtos.next()
+{
+  "_id": ObjectId("54614d5c5b9f2b586cb31d0a"),
+  "name": "Uísque",
+  "description": "Pra preiboi toma com energético",
+  "price": 80
+}
+suissacorp(mongod-2.4.8) be-mean> produtos.next()
+{
+  "_id": ObjectId("54614d5c5b9f2b586cb31d0b"),
+  "name": "Champagne",
+  "description": "só podia ser saopaulino",
+  "price": 130
+}
+suissacorp(mongod-2.4.8) be-mean> produtos.next()
+error hasNext: false at src/mongo/shell/query.js:127
+// este erro é porque não há mais elementos para serem percorrido
+// hasNext retorna false se não tivesse mais elementos para serem percorrido
+// e returna true se tiver elementos para serem percorrido
+suissacorp(mongod-2.4.8) be-mean> produtos.hasNext()
+false
+suissacorp(mongod-2.4.8) be-mean> var produtos = db.products.find()
+suissacorp(mongod-2.4.8) be-mean> produtos.hasNext()
+true
 ```
 
 **Dica**: quando utilizar o comando `find` ou `findOne` e não tiver o mongo-hacker, utilize no final a função `pretty()`.
 
 ```
-find().pretty()
+db.products.find().pretty()
 ```
 
 Nós também podemos inserir objetos utilizando o `save`, ele tanto insere como altera valores.
@@ -801,7 +909,24 @@ suissacorp(mongod-2.4.8) be-mean> db.products.find(query)
   "description": "Mé brasileiro",
   "price": 23
 }
-
+{
+  "_id": ObjectId("54614d5c5b9f2b586cb31d09"),
+  "name": "Pinga",
+  "description": "da braba po tubão",
+  "price": 4.5
+}
+{
+  "_id": ObjectId("54614d5c5b9f2b586cb31d0a"),
+  "name": "Uísque",
+  "description": "Pra preiboi toma com energético",
+  "price": 80
+}
+{
+  "_id": ObjectId("54614d5c5b9f2b586cb31d0b"),
+  "name": "Champagne",
+  "description": "só podia ser saopaulino",
+  "price": 130
+}
 ```
 
 ##Busca em Arrays
@@ -1271,6 +1396,34 @@ Para deletar um índice usamos o seguinte comando
 db.products.dropIndex("name_1")
 ```
 
+Para criar índices únicos.
+```
+db.products.ensureIndex( { name: 1 }, { unique: true })
+{
+  "createdCollectionAutomatically": false,
+  "numIndexesBefore": 1,
+  "numIndexesAfter": 2,
+  "ok": 1
+}
+
+db.products.getIndices()
+[
+  {
+    ...
+  },
+  {
+    "v": 1,
+    "unique": true,
+    "key": {
+      "name": 1
+    },
+    "name": "name_1",
+    "ns": "bemean.products"
+  }
+]
+```
+Veja que passamos como segundo parâmetro um JSON com a chave `unique` com valor `true`. Existem outras possibilidade para a criação de [índices](http://docs.mongodb.org/manual/reference/method/db.collection.ensureIndex/).
+
 ###Explain
 
 Um ótimo comando para verificarmos como nossas queries estão sendo executadas. Podemos usar o conhecido `explain`, e ele será de grande utilidade quando precisarmos otimizar nossas queries.
@@ -1327,7 +1480,7 @@ var obj = db.workshop.findOne()
 {
 "_id" : ObjectId("51ccffe9c49bec6fd946c92a"),
 "nome" : "Be MEAN",
-"professor" : DBRef("users", "51ccffa2c49bec6fd946c929")
+"professor" : DBRef("professores", "51ccffa2c49bec6fd946c929")
 }
 ```
 
@@ -1391,3 +1544,5 @@ Na coleção `fs.chunks` fica nosso arquivo binário divido em pequenas partes, 
 Você deve ter notado que temos o campo md5, para que o md5 do arquivo pode ser interessante nesse caso? 
 
 Bom, você pode fazer uma busca pelo md5 e caso encontre mais de 1 registro, é porque existem arquivos duplicados, ai você decide o que fazer com ele.
+
+[Introdução](https://github.com/ericdouglas/be-MEAN-resources/blob/master/ebook/00-intro.md) | [Node.JS](https://github.com/ericdouglas/be-MEAN-resources/blob/master/ebook/02-nodejs.md)
